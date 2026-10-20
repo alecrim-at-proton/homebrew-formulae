@@ -1,19 +1,30 @@
-# Updated formula for Gitlab Tart Executor
+# typed: strict
+# frozen_string_literal: true
 
 class GitlabTartExecutor < Formula
   desc "GitLab Runner Executor to run jobs inside isolated Tart VMs"
   homepage "https://github.com/cirruslabs/gitlab-tart-executor"
-  version "1.28.0"
+  url "https://github.com/cirruslabs/gitlab-tart-executor/archive/refs/tags/1.29.0.tar.gz"
+  version "1.29.0"
+  sha256 "c3b27df985cd45bcc8d4b65c085db670a735bca89ab9b49372c4cb4b59d98b76"
 
+  depends_on "go" => :build
+  depends_on arch: :arm
+  depends_on macos: :sequoia
   depends_on "openai/tools/tart"
-  depends_on macos: :tahoe
 
-  if Hardware::CPU.arm?
-    url "https://github.com/cirruslabs/gitlab-tart-executor/releases/download/1.28.0/gitlab-tart-executor-darwin-arm64.tar.gz"
-    sha256 "5b7dea840cdbabcbf3806da1d95d58c3b125dc6385b9eace86fb746c52796103"
+  def install
+    ENV["CGO_ENABLED"] = "0"
+    ldflags = [
+      "-X github.com/cirruslabs/gitlab-tart-executor/internal/version.Version=#{version}",
+      "-X github.com/cirruslabs/gitlab-tart-executor/internal/version.Commit=e1fb650",
+    ].join(" ")
 
-    define_method(:install) do
-      bin.install "gitlab-tart-executor"
-    end
+    system "go", "build", "-ldflags", ldflags, "-o", bin/"gitlab-tart-executor", "./cmd/gitlab-tart-executor"
+  end
+
+  test do
+    assert_match "executor version #{version}-e1fb650", shell_output("#{bin}/gitlab-tart-executor --version")
+    assert_match "Usage:", shell_output("#{bin}/gitlab-tart-executor --help")
   end
 end
